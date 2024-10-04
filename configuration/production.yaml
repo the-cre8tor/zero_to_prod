@@ -6,5 +6,5 @@ application:
 database:
   require_ssl: true
 email_client:
-  base_url: "https://api.selzy.com"
+  base_url: "https://api.postmarkapp.com"
   sender_email: "cre8tor.alexander@gmail.com"
