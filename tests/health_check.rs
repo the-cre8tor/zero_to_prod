@@ -5,7 +5,7 @@ use reqwest::Client;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::{net::TcpListener, sync::LazyLock};
 use uuid::Uuid;
-use zero2prod::{
+use zero_to_prod::{
     configuration::{Configuration, DatabaseSettings},
     email_client::EmailClient,
     startup,

@@ -36,7 +36,7 @@ COPY . .
 ENV SQLX_OFFLINE true
 
 # Build our project
-RUN cargo build --release --bin zero2prod
+RUN cargo build --release --bin zero_to_prod
 
 
 # 4. Runtime stage ->
@@ -53,15 +53,15 @@ RUN apt-get update -y \
     # Clean up
     && apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*  
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder environment
 # to our runtime environment
-COPY --from=builder /app/target/release/zero2prod zero2prod
+COPY --from=builder /app/target/release/zero_to_prod zero_to_prod
 
 # We need the configuration file at runtime!
 COPY configuration configuration
 
 ENV APP_ENVIRONMENT production
 
-ENTRYPOINT ["./zero2prod"]
+ENTRYPOINT ["./zero_to_prod"]

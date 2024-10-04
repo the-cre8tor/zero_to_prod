@@ -2,7 +2,7 @@ services:
   # A Docker web service
   - type: web
     runtime: docker
-    name: zero2prod
+    name: zero_to_prod
     numInstances: 1 # optional (defaults to 1)
     region: frankfurt # optional (defaults to oregon)
     plan: free # optional (defaults to starter)
