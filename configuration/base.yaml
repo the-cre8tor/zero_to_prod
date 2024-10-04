@@ -1,0 +1,12 @@
+#! configuration/base.yaml
+application:
+  port: 8000
+database:
+  host: "127.0.0.1"
+  port: 5432
+  username: "app"
+  password: "secret"
+  database_name: "newsletter"
+email_client:
+  base_url: "127.0.0.1"
+  sender_email: "test@gmail.com"

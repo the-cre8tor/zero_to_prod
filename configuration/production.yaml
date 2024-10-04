@@ -1,0 +1,10 @@
+#! configuration/production.yaml
+
+application:
+  host: 0.0.0.0
+  name: "ZeroToProd: [production]"
+database:
+  require_ssl: true
+email_client:
+  base_url: "https://api.selzy.com"
+  sender_email: "cre8tor.alexander@gmail.com"
