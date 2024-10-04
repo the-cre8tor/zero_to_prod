@@ -1,9 +1,9 @@
 use sqlx::PgPool;
 use std::net::TcpListener;
-use zero2prod::configuration::Configuration;
-use zero2prod::email_client::EmailClient;
-use zero2prod::startup;
-use zero2prod::telemetry::Telemetry;
+use zero_to_prod::configuration::Configuration;
+use zero_to_prod::email_client::EmailClient;
+use zero_to_prod::startup;
+use zero_to_prod::telemetry::Telemetry;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
