@@ -74,7 +74,7 @@ impl TestApp {
         }
     }
 
-    pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    async fn configure_database(config: &DatabaseSettings) -> PgPool {
         let mut maintenance_settings = DatabaseSettings {
             database_name: "postgres".to_string(),
             username: "postgres".to_string(),
