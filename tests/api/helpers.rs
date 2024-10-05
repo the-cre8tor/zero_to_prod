@@ -1,6 +1,7 @@
 //! tests/api/helpers.rs
 
 use redact::Secret;
+use reqwest::{Client, Response};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
 use uuid::Uuid;
@@ -92,5 +93,15 @@ impl TestApp {
             .expect("Failed to migrate the database");
 
         connection_pool
+    }
+
+    pub async fn post_subscriptions(&self, body: String) -> Response {
+        Client::new()
+            .post(&format!("{}/subscriptions", &self.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
     }
 }
