@@ -1,5 +1,7 @@
 //! src/configuration.rs
 
+use std::time::Duration;
+
 use config::ConfigError;
 use redact::Secret;
 use serde_aux::field_attributes::deserialize_number_from_string;
@@ -38,11 +40,16 @@ pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
     pub authorization_token: Secret<String>,
+    pub timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
     pub fn sender(&self) -> Result<SubscriberEmail, String> {
         SubscriberEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        Duration::from_millis(self.timeout_milliseconds)
     }
 }
 

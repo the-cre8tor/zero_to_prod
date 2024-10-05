@@ -27,11 +27,9 @@ impl EmailClient {
         base_url: String,
         sender: SubscriberEmail,
         authorization_token: Secret<String>,
+        timeout: Duration,
     ) -> Self {
-        let http_client = Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()
-            .unwrap();
+        let http_client = Client::builder().timeout(timeout).build().unwrap();
 
         Self {
             sender,
@@ -83,6 +81,7 @@ mod tests {
     use fake::{Fake, Faker};
     use redact::Secret;
     use serde_json::{from_slice, Value};
+    use std::time::Duration;
 
     use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
@@ -104,7 +103,12 @@ mod tests {
 
     /// Get a test instance of `EmailClient`.
     fn email_client(base_url: String) -> EmailClient {
-        EmailClient::new(base_url, email(), Secret::new(Faker.fake()))
+        EmailClient::new(
+            base_url,
+            email(),
+            Secret::new(Faker.fake()),
+            Duration::from_millis(200),
+        )
     }
 
     struct SendEmailBodyMatcher;
