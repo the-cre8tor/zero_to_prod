@@ -14,7 +14,7 @@ use zero_to_prod::{
 // Ensure that the `tracing` stack is only initialised once using `LazyLock`
 static TRACING: LazyLock<()> = LazyLock::new(|| {
     let default_filter_level = "info".to_string();
-    let subscriber_name = "test".to_string();
+    let subscriber_name = "test";
     let use_test_log = std::env::var("TEST_LOG").is_ok();
 
     if use_test_log {

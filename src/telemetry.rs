@@ -37,12 +37,12 @@ impl Telemetry {
     /// Register a subscriber as global default to process span data.
     ///
     /// It should only be called once!
-    pub fn init_subscriber<Sink>(application_name: String, env_filter: String, sink: Sink)
+    pub fn init_subscriber<Sink>(application_name: &str, env_filter: String, sink: Sink)
     where
         Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static,
     {
         LogTracer::init().expect("Failed to set logger.");
-        let subscriber = Telemetry::get_subscriber(application_name, env_filter, sink);
+        let subscriber = Telemetry::get_subscriber(application_name.to_owned(), env_filter, sink);
         set_global_default(subscriber).expect("Failed to set subscriber");
     }
 }
