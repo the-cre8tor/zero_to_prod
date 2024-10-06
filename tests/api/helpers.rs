@@ -5,6 +5,7 @@ use reqwest::{Client, Response};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
 use uuid::Uuid;
+use wiremock::MockServer;
 use zero_to_prod::{
     configuration::{Configuration, DatabaseSettings},
     startup::Application,
@@ -27,6 +28,7 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
@@ -35,12 +37,17 @@ impl TestApp {
         // All other invocations will instead skip execution.
         LazyLock::force(&TRACING);
 
+        // Launch a mock server to stand in for Postmark's API
+        let email_server = MockServer::start().await;
+
         // Randomise configuration to ensure test isolation
         let configuration = {
             let mut config = Configuration::get().expect("Failed to read configuration.");
+
             // We randomly create new database name for test purposes
             config.database.database_name = Uuid::new_v4().to_string();
             config.application.port = 0;
+            config.email_client.base_url = email_server.uri();
 
             config
         };
@@ -59,6 +66,7 @@ impl TestApp {
         Self {
             address,
             db_pool: connection_pool,
+            email_server,
         }
     }
 
