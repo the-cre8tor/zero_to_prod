@@ -12,7 +12,7 @@ services:
     healthCheckPath: /health-check
     envVars:
       - key: APP_APPLICATION__BASE_URL
-        sync: false
+        sync: true
       - key: APP_DATABASE__USERNAME
         fromDatabase:
           name: newsletter
