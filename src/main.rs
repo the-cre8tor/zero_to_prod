@@ -10,7 +10,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let connection_pool = Application::db_connection_pool(&config.database);
 
-    let application = Application::build(&config, connection_pool).await?;
+    let application = Application::build(config, connection_pool).await?;
     application.run_until_stopped().await?;
 
     Ok(())

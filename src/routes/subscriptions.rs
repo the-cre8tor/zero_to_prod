@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::domain::NewSubscriber;
 use crate::email_client::EmailClient;
+use crate::startup::ApplicationBaseUrl;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -17,7 +18,7 @@ pub struct FormData {
 
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(form, pool, email_client),
+    skip(form, pool, email_client, base_url),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name
@@ -27,6 +28,7 @@ pub async fn subscribe(
     form: Form<FormData>,
     pool: Data<PgPool>,
     email_client: Data<EmailClient>,
+    base_url: Data<ApplicationBaseUrl>,
 ) -> HttpResponse {
     let new_subscriber = match form.0.try_into() {
         Ok(subsciber) => subsciber,
@@ -37,7 +39,9 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     };
 
-    if send_email(&email_client, new_subscriber).await.is_err() {
+    let sent_email = send_email(&email_client, new_subscriber, &base_url.0);
+
+    if sent_email.await.is_err() {
         return HttpResponse::InternalServerError().finish();
     }
 
@@ -46,13 +50,17 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Send a confirmation email to a new subscriber",
-    skip(email_client, new_subscriber)
+    skip(email_client, new_subscriber, base_url)
 )]
 async fn send_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://there-is-no-such-domain.com/subscriptions/confirm";
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token=mytoken",
+        base_url
+    );
 
     let html_email = format!(
         "Welcome to our newsletter!<br />\
