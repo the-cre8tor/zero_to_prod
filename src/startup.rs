@@ -9,7 +9,7 @@ use tracing_actix_web::TracingLogger; // Transmission Control Protocol: [TCP]
 
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::{health_check, subscribe};
+use crate::routes::{confirm, health_check, subscribe};
 
 // NOTE: HTTP & TCP is a protocol
 
@@ -61,6 +61,7 @@ impl Application {
                 .wrap(TracingLogger::default())
                 .route("/health-check", get().to(health_check))
                 .route("/subscriptions", post().to(subscribe))
+                .route("/subscriptions/confirm", get().to(confirm))
                 .app_data(db_pool.clone())
                 .app_data(email_client.clone())
         })
