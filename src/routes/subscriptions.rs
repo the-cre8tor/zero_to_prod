@@ -3,6 +3,7 @@
 use actix_web::http::StatusCode;
 use actix_web::web::{Data, Form};
 use actix_web::{HttpResponse, ResponseError};
+use anyhow::Context;
 use chrono::Utc;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
@@ -36,38 +37,24 @@ pub async fn subscribe(
 ) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let mut transaction = pool.begin().await.map_err(|error| {
-        SubscribeError::UnexpectedError(
-            Box::new(error),
-            "Failed to acquire a Postgres connection from the pool".into(),
-        )
-    })?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
 
     let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
         .await
-        .map_err(|error| {
-            SubscribeError::UnexpectedError(
-                Box::new(error),
-                "Failed to insert new subscriber in the database.".into(),
-            )
-        })?;
+        .context("Failed to insert new subscriber in the database.")?;
 
     let subscription_token = ganerate_subscription_token();
     store_subscription_token(&mut transaction, subscriber_id, &subscription_token)
         .await
-        .map_err(|error| {
-            SubscribeError::UnexpectedError(
-                Box::new(error),
-                "Failed to store the confirmation token for a new subscriber.".into(),
-            )
-        })?;
+        .context("Failed to store the confirmation token for a new subscriber.")?;
 
-    transaction.commit().await.map_err(|error| {
-        SubscribeError::UnexpectedError(
-            Box::new(error),
-            "Failed to commit SQL transaction to store a new subscriber.".into(),
-        )
-    })?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
 
     send_confirmation_email(
         &email_client,
@@ -76,12 +63,7 @@ pub async fn subscribe(
         &subscription_token,
     )
     .await
-    .map_err(|error| {
-        SubscribeError::UnexpectedError(
-            Box::new(error),
-            "Failed to send a confirmation email.".into(),
-        )
-    })?;
+    .context("Failed to send a confirmation email.")?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -138,10 +120,7 @@ async fn insert_subscriber(
         Utc::now()
     );
 
-    transaction.execute(query).await.map_err(|error| {
-        tracing::error!("Failed to execute query: {:?}", error);
-        error
-    })?;
+    transaction.execute(query).await?;
 
     Ok(subscriber_id)
 }
@@ -174,15 +153,18 @@ pub async fn store_subscription_token(
         subscriber_id
     );
 
-    transaction.execute(query).await.map_err(|error| {
-        tracing::error!("Failed to execute query: {:?}", error);
-        StoreTokenError(error)
-    })?;
+    transaction.execute(query).await.map_err(StoreTokenError)?;
 
     Ok(())
 }
 
 pub struct StoreTokenError(sqlx::Error);
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 impl std::fmt::Debug for StoreTokenError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -200,20 +182,14 @@ impl std::fmt::Display for StoreTokenError {
     }
 }
 
-impl std::error::Error for StoreTokenError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.0)
-    }
-}
-
 #[derive(thiserror::Error)]
 pub enum SubscribeError {
     #[error("{0}")]
     ValidationError(String),
     // Transparent delegates both `Display`'s and `source`'s implementation
     // to the type wrapped by `UnexpectedError`.
-    #[error("{1}")]
-    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 impl std::fmt::Debug for SubscribeError {
@@ -226,12 +202,12 @@ impl ResponseError for SubscribeError {
     fn status_code(&self) -> StatusCode {
         match self {
             SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
-            SubscribeError::UnexpectedError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-fn error_chain_fmt(
+pub fn error_chain_fmt(
     error: &impl std::error::Error,
     formatter: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
