@@ -95,7 +95,7 @@ async fn send_confirmation_email(
     );
 
     email_client
-        .send_email(new_subscriber.email, "Welcome!", &html_email, &text_email)
+        .send_email(&new_subscriber.email, "Welcome!", &html_email, &text_email)
         .await
 }
 

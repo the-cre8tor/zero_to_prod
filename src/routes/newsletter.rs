@@ -3,7 +3,7 @@ use actix_web::{
     web::{Data, Json},
     HttpResponse, ResponseError,
 };
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use sqlx::PgPool;
 
 use crate::{domain::SubscriberEmail, email_client::EmailClient};
@@ -38,14 +38,14 @@ pub async fn publish_newsletter(
             for subscriber in subs {
                 email_client
                     .send_email(
-                        subscriber.email,
+                        &subscriber.email,
                         &body.title,
                         &body.content.html,
                         &body.content.text,
                     )
                     .await
                     .with_context(|| {
-                        format!("Failed to send newsletter issue to {:?}", &subscriber.email)
+                        format!("Failed to send newsletter issue to {}", subscriber.email)
                     })?;
             }
         }
