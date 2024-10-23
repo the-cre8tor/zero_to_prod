@@ -13,18 +13,23 @@ name = "zero_to_prod"
 
 [dependencies]
 actix-web = "4"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "rt", "macros"] }
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "rt",
+    "macros",
+] }
 config = "0.14"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 unicode-segmentation = "1.12"
 
-serde = { version = "1", features = ["derive"]}
+serde = { version = "1", features = ["derive"] }
 serde-aux = "4"
 
 # Gold Bag ->
 tracing = { version = "0.1", features = ["log"] }
-tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"]}
+tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "0.3"
 tracing-log = "0.2"
 tracing-actix-web = "0.7"
@@ -35,6 +40,7 @@ validator = "0.18"
 
 thiserror = "1"
 anyhow = "1"
+base64 = "0.22"
 
 [dependencies.reqwest]
 version = "0.12"
@@ -52,7 +58,7 @@ features = [
     "postgres",
     "uuid",
     "chrono",
-    "migrate"
+    "migrate",
 ]
 
 [dev-dependencies]
