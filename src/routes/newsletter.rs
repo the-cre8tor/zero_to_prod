@@ -3,7 +3,7 @@ use actix_web::{
     web::{Data, Json},
     HttpResponse, ResponseError,
 };
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use sqlx::PgPool;
 
 use crate::{domain::SubscriberEmail, email_client::EmailClient};
@@ -33,18 +33,33 @@ pub async fn publish_newsletter(
 ) -> Result<HttpResponse, PublishError> {
     let subscribers = get_confirmed_subscribers(&pool).await?;
 
-    for subscriber in subscribers {
-        email_client
-            .send_email(
-                subscriber.email,
-                &body.title,
-                &body.content.html,
-                &body.content.text,
-            )
-            .await
-            .with_context(|| {
-                format!("Failed to send newsletter issue to {:?}", &subscriber.email)
-            })?;
+    match subscribers {
+        Ok(subs) => {
+            for subscriber in subs {
+                email_client
+                    .send_email(
+                        subscriber.email,
+                        &body.title,
+                        &body.content.html,
+                        &body.content.text,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Failed to send newsletter issue to {:?}", &subscriber.email)
+                    })?;
+            }
+        }
+        Err(error) => {
+            tracing::warn!(
+            // We record the error chain as a structured field
+            // on the log record.
+            error.cause_chain = ?error,
+            // Using `\` to split a long string literal over
+            // two lines, without creating a `\n` character.
+            "Skipping a confirmed subscriber. \
+            Their stored contact details are invalid",
+            );
+        }
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -52,7 +67,7 @@ pub async fn publish_newsletter(
 
 async fn get_confirmed_subscribers(
     pool: &PgPool,
-) -> Result<Vec<ConfirmedSubscriber>, anyhow::Error> {
+) -> Result<Result<Vec<ConfirmedSubscriber>, anyhow::Error>, anyhow::Error> {
     struct Row {
         email: String,
     }
@@ -70,17 +85,10 @@ async fn get_confirmed_subscribers(
 
     let confirmed_subscribers = rows
         .into_iter()
-        .filter_map(|row| {
+        .map(|row| {
             let validated_data = match SubscriberEmail::parse(row.email) {
-                Ok(email) => Some(ConfirmedSubscriber { email }),
-                Err(error) => {
-                    tracing::warn!(
-                        "A confirmed subscriber is using an invalid email address.\n{}",
-                        error
-                    );
-
-                    None
-                }
+                Ok(email) => Ok(ConfirmedSubscriber { email }),
+                Err(error) => Err(anyhow::anyhow!(error)),
             };
 
             validated_data
