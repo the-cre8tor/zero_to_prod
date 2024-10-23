@@ -120,7 +120,7 @@ async fn newsletter_returns_400_for_invalid_data() {
     ];
 
     for (invalid_body, error_message) in test_cases {
-        let response = app.post_newsletters(newsletter_request_body).await;
+        let response = app.post_newsletters(invalid_body).await;
 
         // Assert
         assert_eq!(
