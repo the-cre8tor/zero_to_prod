@@ -62,6 +62,7 @@ impl TestApp {
 
         // Create and migrate the database
         let connection_pool = TestApp::configure_database(&configuration.database).await;
+        TestApp::add_test_user(&connection_pool).await;
 
         // Launch the application as a background task
         let application = Application::build(configuration, connection_pool.clone())
@@ -153,13 +154,44 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         let url = &format!("{}/newsletters", &self.address);
+        let (username, password) = self.test_user().await;
 
         reqwest::Client::new()
             .post(url)
-            .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    async fn add_test_user(pool: &PgPool) -> () {
+        sqlx::query!(
+            r#"
+            INSERT INTO users (user_id, username, password)
+            VALUES ($1, $2, $3)
+            "#,
+            Uuid::new_v4(),
+            Uuid::new_v4().to_string(),
+            Uuid::new_v4().to_string(),
+        )
+        .execute(pool)
+        .await
+        .expect("Failed to create test users");
+    }
+
+    async fn test_user(&self) -> (String, String) {
+        let row = sqlx::query!(
+            r#"
+            SELECT username, password
+            FROM users
+            LIMIT 1
+            "#
+        )
+        .fetch_one(&self.db_pool)
+        .await
+        .expect("Failed to create test users.");
+
+        (row.username, row.password)
     }
 }
