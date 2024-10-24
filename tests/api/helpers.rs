@@ -1,5 +1,6 @@
 //! tests/api/helpers.rs
 
+use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use linkify::{LinkFinder, LinkKind};
 use redact::Secret;
 use reqwest::{Client, Response, Url};
@@ -27,6 +28,44 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
     }
 });
 
+pub struct TestUser {
+    pub user_id: Uuid,
+    pub username: String,
+    pub password: String,
+}
+
+impl TestUser {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string(),
+        }
+    }
+
+    async fn store(&self, pool: &PgPool) {
+        let salt = SaltString::generate(&mut rand::thread_rng());
+
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO users (user_id, username, password_hash)
+            VALUES ($1, $2, $3)
+            "#,
+            self.user_id,
+            self.username,
+            password_hash
+        )
+        .execute(pool)
+        .await
+        .expect("Failed to store test user.");
+    }
+}
+
 pub struct ConfirmationLinks {
     pub html: Url,
     pub plain_text: Url,
@@ -37,6 +76,7 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub port: u16,
+    pub test_user: TestUser,
 }
 
 impl TestApp {
@@ -62,7 +102,6 @@ impl TestApp {
 
         // Create and migrate the database
         let connection_pool = TestApp::configure_database(&configuration.database).await;
-        TestApp::add_test_user(&connection_pool).await;
 
         // Launch the application as a background task
         let application = Application::build(configuration, connection_pool.clone())
@@ -73,12 +112,17 @@ impl TestApp {
         let address = format!("http://127.0.0.1:{}", application_port);
         let _ = tokio::spawn(application.run_until_stopped());
 
-        Self {
+        let test_app = Self {
             address,
             port: application_port,
             db_pool: connection_pool,
             email_server,
-        }
+            test_user: TestUser::generate(),
+        };
+
+        test_app.test_user.store(&test_app.db_pool).await;
+
+        test_app
     }
 
     async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -154,7 +198,8 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         let url = &format!("{}/newsletters", &self.address);
-        let (username, password) = self.test_user().await;
+        let username = &self.test_user.username;
+        let password = &self.test_user.password;
 
         reqwest::Client::new()
             .post(url)
@@ -163,35 +208,5 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
-    }
-
-    async fn add_test_user(pool: &PgPool) -> () {
-        sqlx::query!(
-            r#"
-            INSERT INTO users (user_id, username, password)
-            VALUES ($1, $2, $3)
-            "#,
-            Uuid::new_v4(),
-            Uuid::new_v4().to_string(),
-            Uuid::new_v4().to_string(),
-        )
-        .execute(pool)
-        .await
-        .expect("Failed to create test users");
-    }
-
-    async fn test_user(&self) -> (String, String) {
-        let row = sqlx::query!(
-            r#"
-            SELECT username, password
-            FROM users
-            LIMIT 1
-            "#
-        )
-        .fetch_one(&self.db_pool)
-        .await
-        .expect("Failed to create test users.");
-
-        (row.username, row.password)
     }
 }
