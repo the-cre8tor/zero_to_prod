@@ -1,3 +1,5 @@
+use tokio::task::JoinHandle;
+
 use tracing::{subscriber::set_global_default, Subscriber};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
@@ -44,5 +46,14 @@ impl Telemetry {
         LogTracer::init().expect("Failed to set logger.");
         let subscriber = Telemetry::get_subscriber(application_name.to_owned(), env_filter, sink);
         set_global_default(subscriber).expect("Failed to set subscriber");
+    }
+
+    pub fn spawn_blocking_with_tracing<F, R>(function: F) -> JoinHandle<R>
+    where
+        F: FnOnce() -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        let current_span = tracing::Span::current();
+        tokio::task::spawn_blocking(move || current_span.in_scope(function))
     }
 }

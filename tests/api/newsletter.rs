@@ -1,7 +1,5 @@
 //! tests/api/newsletter.rs
 
-use std::fmt::format;
-
 use crate::helpers::{ConfirmationLinks, TestApp};
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
