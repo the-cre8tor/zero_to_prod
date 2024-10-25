@@ -1,5 +1,5 @@
 use actix_web::dev::Server;
-use actix_web::web::{get, post, to, Data};
+use actix_web::web::{get, post, Data};
 use actix_web::{App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
