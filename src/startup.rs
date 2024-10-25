@@ -1,5 +1,5 @@
 use actix_web::dev::Server;
-use actix_web::web::{get, post, Data};
+use actix_web::web::{get, post, to, Data};
 use actix_web::{App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
@@ -9,7 +9,9 @@ use tracing_actix_web::TracingLogger; // Transmission Control Protocol: [TCP]
 
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::{confirm, health_check, publish_newsletter, subscribe};
+use crate::routes::{
+    confirm, health_check, home, login, login_form, publish_newsletter, subscribe,
+};
 
 // NOTE: HTTP & TCP is a protocol
 
@@ -68,6 +70,9 @@ impl Application {
         let server = HttpServer::new(move || {
             App::new()
                 .wrap(TracingLogger::default())
+                .route("/", get().to(home))
+                .route("/login", get().to(login_form))
+                .route("/login", post().to(login))
                 .route("/health-check", get().to(health_check))
                 .route("/subscriptions", post().to(subscribe))
                 .route("/subscriptions/confirm", get().to(confirm))
