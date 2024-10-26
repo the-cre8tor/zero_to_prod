@@ -1,6 +1,7 @@
 use actix_web::dev::Server;
 use actix_web::web::{get, post, Data};
 use actix_web::{App, HttpServer};
+use redact::Secret;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::io::Error;
@@ -14,6 +15,9 @@ use crate::routes::{
 };
 
 // NOTE: HTTP & TCP is a protocol
+
+#[derive(Clone)]
+pub struct HmacSecret(pub Secret<String>);
 
 pub struct ApplicationBaseUrl(pub String);
 
@@ -48,6 +52,7 @@ impl Application {
             connection_pool,
             email_client,
             config.application.base_url,
+            config.application.hmac_secret,
         )?;
 
         Ok(Self { port, server })
@@ -62,10 +67,12 @@ impl Application {
         db_pool: PgPool,
         email_client: EmailClient,
         base_url: String,
+        hmac_secret: Secret<String>,
     ) -> Result<Server, std::io::Error> {
         let db_pool = Data::new(db_pool);
         let email_client = Data::new(email_client);
         let base_url = Data::new(ApplicationBaseUrl(base_url));
+        let hmac_secret = Data::new(HmacSecret(hmac_secret));
 
         let server = HttpServer::new(move || {
             App::new()
@@ -80,6 +87,7 @@ impl Application {
                 .app_data(db_pool.clone())
                 .app_data(email_client.clone())
                 .app_data(base_url.clone())
+                .app_data(hmac_secret.clone())
         })
         .listen(listener)?
         .run();

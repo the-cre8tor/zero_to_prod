@@ -1,16 +1,19 @@
 use std::fmt::Debug;
 
 use actix_web::{
+    error::InternalError,
     http::{header::LOCATION, StatusCode},
     web::{Data, Form},
     HttpResponse, ResponseError,
 };
+use hmac::{Hmac, Mac};
 use redact::Secret;
 use sqlx::PgPool;
 
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
+    startup::HmacSecret,
 };
 
 #[derive(serde::Deserialize)]
@@ -23,7 +26,11 @@ pub struct FormData {
     skip(form, pool),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
-pub async fn login(form: Form<FormData>, pool: Data<PgPool>) -> Result<HttpResponse, LoginError> {
+pub async fn login(
+    form: Form<FormData>,
+    pool: Data<PgPool>,
+    secret: Data<HmacSecret>,
+) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
@@ -31,18 +38,39 @@ pub async fn login(form: Form<FormData>, pool: Data<PgPool>) -> Result<HttpRespo
 
     tracing::Span::current().record("username", tracing::field::display(&credentials.username));
 
-    let user_id = validate_credentials(credentials, &pool)
-        .await
-        .map_err(|error| match error {
-            AuthError::InvalidCredentials(_) => LoginError::AuthError(error.into()),
-            AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
-        })?;
+    match validate_credentials(credentials, &pool).await {
+        Ok(user_id) => {
+            tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+            Ok(HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/"))
+                .finish())
+        }
+        Err(error) => {
+            let error = match error {
+                AuthError::InvalidCredentials(_) => LoginError::AuthError(error.into()),
+                AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
+            };
 
-    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+            let query_string = format!("error={}", urlencoding::Encoded::new(error.to_string()));
 
-    Ok(HttpResponse::SeeOther()
-        .insert_header((LOCATION, "/"))
-        .finish())
+            let hmac_tag = {
+                let mut mac =
+                    Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
+                        .unwrap();
+                mac.update(query_string.as_bytes());
+                mac.finalize().into_bytes()
+            };
+
+            let response = HttpResponse::SeeOther()
+                .insert_header((
+                    LOCATION,
+                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
+                ))
+                .finish();
+
+            Err(InternalError::from_response(error, response))
+        }
+    }
 }
 
 #[derive(thiserror::Error)]
@@ -62,14 +90,5 @@ impl Debug for LoginError {
 impl ResponseError for LoginError {
     fn status_code(&self) -> actix_web::http::StatusCode {
         StatusCode::SEE_OTHER
-    }
-
-    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        let encoded_error = urlencoding::Encoded::new(self.to_string());
-        let url = format!("/login?error={}", encoded_error);
-
-        HttpResponse::build(self.status_code())
-            .insert_header((LOCATION, url))
-            .finish()
     }
 }
