@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use actix_web::{
+    cookie::Cookie,
     error::InternalError,
     http::{header::LOCATION, StatusCode},
     web::{Data, Form},
@@ -52,6 +53,7 @@ pub async fn login(
 
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
+                .cookie(Cookie::new("_flash", error.to_string()))
                 .finish();
 
             Err(InternalError::from_response(error, response))
