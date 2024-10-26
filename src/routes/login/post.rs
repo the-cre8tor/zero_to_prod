@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use actix_web::{
-    http::{header::LOCATION, StatusCode},
+    http::{
+        header::{ContentType, LOCATION},
+        StatusCode,
+    },
     web::{Data, Form},
     HttpResponse, ResponseError,
 };
@@ -61,9 +64,15 @@ impl Debug for LoginError {
 
 impl ResponseError for LoginError {
     fn status_code(&self) -> actix_web::http::StatusCode {
-        match self {
-            LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
-            LoginError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+        StatusCode::SEE_OTHER
+    }
+
+    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
+        let url = format!("/login?error={}", encoded_error);
+
+        HttpResponse::build(self.status_code())
+            .insert_header((LOCATION, url))
+            .finish()
     }
 }
