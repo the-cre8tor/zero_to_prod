@@ -4,6 +4,7 @@ use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHashe
 use linkify::{LinkFinder, LinkKind};
 use redact::Secret;
 use reqwest::{Client, Response, Url};
+use serde_aux::prelude::bool_true;
 use serde_json::Value;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
@@ -81,6 +82,7 @@ pub struct TestApp {
     pub email_server: MockServer,
     pub port: u16,
     pub test_user: TestUser,
+    pub api_client: Client,
 }
 
 impl TestApp {
@@ -116,12 +118,19 @@ impl TestApp {
         let address = format!("http://127.0.0.1:{}", application_port);
         let _ = tokio::spawn(application.run_until_stopped());
 
+        let client = Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .cookie_store(bool_true())
+            .build()
+            .unwrap();
+
         let test_app = Self {
             address,
             port: application_port,
             db_pool: connection_pool,
             email_server,
             test_user: TestUser::generate(),
+            api_client: client,
         };
 
         test_app.test_user.store(&test_app.db_pool).await;
@@ -163,7 +172,7 @@ impl TestApp {
     }
 
     pub async fn post_subscriptions(&self, body: String) -> Response {
-        Client::new()
+        self.api_client
             .post(&format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -205,7 +214,7 @@ impl TestApp {
         let username = &self.test_user.username;
         let password = &self.test_user.password;
 
-        reqwest::Client::new()
+        self.api_client
             .post(url)
             .basic_auth(username, Some(password))
             .json(&body)
@@ -218,10 +227,7 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .unwrap()
+        self.api_client
             .post(&format!("{}/login", &self.address))
             .form(body)
             .send()
@@ -232,5 +238,18 @@ impl TestApp {
     pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
         assert_eq!(response.status().as_u16(), 303);
         assert_eq!(response.headers().get("Location").unwrap(), location);
+    }
+
+    pub async fn get_login_html(&self) -> String {
+        let response = self
+            .api_client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        let text = response.text().await.unwrap();
+
+        text
     }
 }
