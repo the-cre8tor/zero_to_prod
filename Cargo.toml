@@ -43,6 +43,7 @@ anyhow = "1"
 base64 = "0.22"
 argon2 = { version = "0.5", features = ["std"] }
 urlencoding = "2"
+htmlescape = "0.3"
 
 [dependencies.reqwest]
 version = "0.12"

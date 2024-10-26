@@ -1,10 +1,7 @@
 use std::fmt::Debug;
 
 use actix_web::{
-    http::{
-        header::{ContentType, LOCATION},
-        StatusCode,
-    },
+    http::{header::LOCATION, StatusCode},
     web::{Data, Form},
     HttpResponse, ResponseError,
 };
