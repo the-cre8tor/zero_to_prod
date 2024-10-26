@@ -6,7 +6,6 @@ use actix_web::{
     web::{Data, Form},
     HttpResponse, ResponseError,
 };
-use hmac::{Hmac, Mac};
 use redact::Secret;
 use sqlx::PgPool;
 
@@ -51,21 +50,8 @@ pub async fn login(
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
             };
 
-            let query_string = format!("error={}", urlencoding::Encoded::new(error.to_string()));
-
-            let hmac_tag = {
-                let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
-                        .unwrap();
-                mac.update(query_string.as_bytes());
-                mac.finalize().into_bytes()
-            };
-
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                ))
+                .insert_header((LOCATION, "/login"))
                 .finish();
 
             Err(InternalError::from_response(error, response))
