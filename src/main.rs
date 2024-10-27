@@ -8,7 +8,9 @@ async fn main() -> anyhow::Result<()> {
 
     Telemetry::init_subscriber(&config.application.name, "info".into(), std::io::stdout);
 
-    let connection_pool = Application::db_connection_pool(&config.database);
+    let connection_pool = Application::db_connection_pool(&config.database)
+        .await
+        .expect("Failed to connect to Postgres.");
 
     let application = Application::build(config, connection_pool).await?;
     application.run_until_stopped().await?;
