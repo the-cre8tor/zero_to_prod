@@ -1,19 +1,18 @@
 use std::fmt::Debug;
 
 use actix_web::{
-    cookie::Cookie,
     error::InternalError,
     http::{header::LOCATION, StatusCode},
     web::{Data, Form},
     HttpResponse, ResponseError,
 };
+use actix_web_flash_messages::FlashMessage;
 use redact::Secret;
 use sqlx::PgPool;
 
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
-    startup::HmacSecret,
 };
 
 #[derive(serde::Deserialize)]
@@ -23,13 +22,12 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(form, pool, secret),
+    skip(form, pool),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     form: Form<FormData>,
     pool: Data<PgPool>,
-    secret: Data<HmacSecret>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -51,9 +49,10 @@ pub async fn login(
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
             };
 
+            FlashMessage::error(error.to_string()).send();
+
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
-                .cookie(Cookie::new("_flash", error.to_string()))
                 .finish();
 
             Err(InternalError::from_response(error, response))
