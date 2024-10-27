@@ -1,3 +1,5 @@
+use actix_session::storage::RedisSessionStore;
+use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
 use actix_web::dev::Server;
 use actix_web::web::{get, post, Data};
@@ -30,7 +32,10 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(config: Settings, connection_pool: PgPool) -> Result<Application, Error> {
+    pub async fn build(
+        config: Settings,
+        connection_pool: PgPool,
+    ) -> Result<Application, anyhow::Error> {
         // Build an `EmailClient` using `configuration`
         let sender_email = config
             .email_client
@@ -56,7 +61,9 @@ impl Application {
             email_client,
             config.application.base_url,
             config.application.hmac_secret,
-        )?;
+            config.redis_url,
+        )
+        .await?;
 
         Ok(Self { port, server })
     }
@@ -65,26 +72,33 @@ impl Application {
         PgPoolOptions::new().connect_lazy_with(configuration.connect_options())
     }
 
-    fn run(
+    async fn run(
         listener: TcpListener,
         db_pool: PgPool,
         email_client: EmailClient,
         base_url: String,
         hmac_secret: Secret<String>,
-    ) -> Result<Server, std::io::Error> {
+        redis_uri: Secret<String>,
+    ) -> Result<Server, anyhow::Error> {
         let db_pool = Data::new(db_pool);
         let email_client = Data::new(email_client);
         let base_url = Data::new(ApplicationBaseUrl(base_url));
         let hmac_secret = HmacSecret(hmac_secret);
 
-        let key = Key::from(hmac_secret.0.expose_secret().as_bytes());
-        let message_store = CookieMessageStore::builder(key).build();
+        let secret_key = Key::from(hmac_secret.0.expose_secret().as_bytes());
+        let message_store = CookieMessageStore::builder(secret_key.clone()).build();
         let message_framework = FlashMessagesFramework::builder(message_store).build();
+
+        let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
 
         let server = HttpServer::new(move || {
             App::new()
                 .wrap(TracingLogger::default())
                 .wrap(message_framework.clone())
+                .wrap(SessionMiddleware::new(
+                    redis_store.clone(),
+                    secret_key.clone(),
+                ))
                 .route("/", get().to(home))
                 .route("/login", get().to(login_form))
                 .route("/login", post().to(login))
