@@ -1,23 +1,15 @@
 //! src/routes/admin/dashboard.rs
 use actix_web::{
-    error::ErrorInternalServerError,
     http::header::{ContentType, LOCATION},
     web::Data,
     HttpResponse,
 };
 use anyhow::Context;
 use sqlx::PgPool;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use uuid::Uuid;
 
-use crate::session_state::TypedSession;
-
-fn error_500<T>(error: T) -> actix_web::Error
-where
-    T: Debug + Display + 'static,
-{
-    ErrorInternalServerError(error)
-}
+use crate::{session_state::TypedSession, utils::error_500};
 
 pub async fn admin_dashboard(
     session: TypedSession,
@@ -35,17 +27,21 @@ pub async fn admin_dashboard(
         .content_type(ContentType::html())
         .body(format!(
             r#"
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta http-equiv="content-type" content="text/html; charset=utf-8">
-                    <title>Admin dashboard</title>
-                    </head>
-                <body>
-                    <p>Welcome {username}!</p>
-                </body>
-                </html>
-            "#
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta http-equiv="content-type" content="text/html; charset=utf-8">
+                <title>Admin dashboard</title>
+            </head>
+            <body>
+                <p>Welcome {username}!</p>
+                <p>Available actions:</p>
+                <ol>
+                    <li><a href="/admin/password">Change password</a></li>
+                </ol>
+            </body>
+            </html>
+            "#,
         )))
 }
 
