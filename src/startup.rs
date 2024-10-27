@@ -16,7 +16,7 @@ use tracing_actix_web::TracingLogger; // Transmission Control Protocol: [TCP]
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes::{
-    confirm, health_check, home, login, login_form, publish_newsletter, subscribe,
+    admin_dashboard, confirm, health_check, home, login, login_form, publish_newsletter, subscribe,
 };
 
 // NOTE: HTTP & TCP is a protocol
@@ -61,7 +61,7 @@ impl Application {
             email_client,
             config.application.base_url,
             config.application.hmac_secret,
-            config.redis_url,
+            config.redis_uri,
         )
         .await?;
 
@@ -106,6 +106,7 @@ impl Application {
                 .route("/subscriptions", post().to(subscribe))
                 .route("/subscriptions/confirm", get().to(confirm))
                 .route("/newsletters", post().to(publish_newsletter))
+                .route("/admin/dashboard", get().to(admin_dashboard))
                 .app_data(db_pool.clone())
                 .app_data(email_client.clone())
                 .app_data(base_url.clone())
