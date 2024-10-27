@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use actix_session::Session;
 use actix_web::{
     error::InternalError,
     http::{header::LOCATION, StatusCode},
@@ -22,12 +23,13 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(form, pool),
+    skip(form, pool, session),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     form: Form<FormData>,
     pool: Data<PgPool>,
+    session: Session,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -39,6 +41,12 @@ pub async fn login(
     match validate_credentials(credentials, &pool).await {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+
+            session.renew();
+            session
+                .insert("user_id", user_id)
+                .map_err(|error| login_redirect(LoginError::UnexpectedError(error.into())))?;
+
             Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/admin/dashboard"))
                 .finish())
@@ -49,13 +57,7 @@ pub async fn login(
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(error.into()),
             };
 
-            FlashMessage::error(error.to_string()).send();
-
-            let response = HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/login"))
-                .finish();
-
-            Err(InternalError::from_response(error, response))
+            Err(login_redirect(error))
         }
     }
 }
@@ -78,4 +80,13 @@ impl ResponseError for LoginError {
     fn status_code(&self) -> actix_web::http::StatusCode {
         StatusCode::SEE_OTHER
     }
+}
+
+fn login_redirect(error: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(error.to_string()).send();
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+
+    InternalError::from_response(error, response)
 }
