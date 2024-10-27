@@ -39,9 +39,9 @@ services:
           name: lightning
           property: connectionString
       - key: APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
-        sync: false
+        sync: true
       - key: APP_APPLICATION__HMAC_SECRET
-        sync: false
+        sync: true
 
   - type: redis
     name: lightning
