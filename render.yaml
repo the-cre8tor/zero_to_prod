@@ -12,7 +12,7 @@ services:
     healthCheckPath: /health-check
     envVars:
       - key: APP_APPLICATION__BASE_URL
-        sync: true
+        sync: false
       - key: APP_DATABASE__USERNAME
         fromDatabase:
           name: newsletter
@@ -39,9 +39,9 @@ services:
           name: lightning
           property: connectionString
       - key: APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
-        sync: true
+        sync: false
       - key: APP_APPLICATION__HMAC_SECRET
-        sync: true
+        sync: false
 
   - type: redis
     name: lightning
