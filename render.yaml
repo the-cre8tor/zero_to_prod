@@ -34,6 +34,10 @@ services:
           name: newsletter
           property: database
 
+  - type: redis
+    name: lightning
+    ipAllowList: []
+    plan: free
 databases:
   - name: newsletter
     region: frankfurt
