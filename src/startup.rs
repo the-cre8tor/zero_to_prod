@@ -2,7 +2,8 @@ use actix_session::storage::RedisSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
 use actix_web::dev::Server;
-use actix_web::web::{get, post, Data};
+use actix_web::middleware::from_fn;
+use actix_web::web::{get, post, scope, Data};
 use actix_web::{App, HttpServer};
 use actix_web_flash_messages::storage::CookieMessageStore;
 use actix_web_flash_messages::FlashMessagesFramework;
@@ -13,11 +14,12 @@ use std::io::Error;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger; // Transmission Control Protocol: [TCP]
 
+use crate::authentication::reject_anonymous_users;
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes::{
     admin_dashboard, change_password, change_password_form, confirm, health_check, home, log_out,
-    login, login_form, publish_newsletter, subscribe,
+    login, login_form, publish_newsletter, publish_newsletter_form, subscribe,
 };
 
 // NOTE: HTTP & TCP is a protocol
@@ -107,10 +109,16 @@ impl Application {
                 .route("/subscriptions", post().to(subscribe))
                 .route("/subscriptions/confirm", get().to(confirm))
                 .route("/newsletters", post().to(publish_newsletter))
-                .route("/admin/dashboard", get().to(admin_dashboard))
-                .route("/admin/password", get().to(change_password_form))
-                .route("/admin/password", post().to(change_password))
-                .route("/admin/logout", post().to(log_out))
+                .service(
+                    scope("/admin")
+                        .wrap(from_fn(reject_anonymous_users))
+                        .route("/dashboard", get().to(admin_dashboard))
+                        .route("/newsletters", get().to(publish_newsletter_form))
+                        .route("/newsletters", post().to(publish_newsletter))
+                        .route("/password", get().to(change_password_form))
+                        .route("/password", post().to(change_password))
+                        .route("/logout", post().to(log_out)),
+                )
                 .app_data(db_pool.clone())
                 .app_data(email_client.clone())
                 .app_data(base_url.clone())
