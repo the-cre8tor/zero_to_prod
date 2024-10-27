@@ -9,7 +9,7 @@ pub struct TypedSession(Session);
 impl TypedSession {
     const USER_ID_KEY: &'static str = "user_id";
 
-    pub fn renew(&self) -> () {
+    pub fn renew(&self) {
         self.0.renew();
     }
 
