@@ -156,7 +156,11 @@ impl TestApp {
             ..config.clone()
         };
 
-        let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
+        // let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
+        //     .await
+        //     .expect("Failed to connect to Postgres.");
+
+        let mut connection = PgConnection::connect(&maintenance_settings.connection_string())
             .await
             .expect("Failed to connect to Postgres.");
 

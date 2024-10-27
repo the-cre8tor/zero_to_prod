@@ -72,6 +72,22 @@ impl DatabaseSettings {
             .ssl_mode(ssl_mode)
             .database(&self.database_name)
     }
+
+    pub fn connection_string(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}?sslmode={}",
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port,
+            self.database_name,
+            if self.require_ssl {
+                "require"
+            } else {
+                "prefer"
+            }
+        )
+    }
 }
 
 pub struct Configuration;
