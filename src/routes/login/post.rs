@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use actix_session::Session;
 use actix_web::{
     error::InternalError,
     http::{header::LOCATION, StatusCode},
@@ -14,6 +13,7 @@ use sqlx::PgPool;
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
+    session_state::TypedSession,
 };
 
 #[derive(serde::Deserialize)]
@@ -29,7 +29,7 @@ pub struct FormData {
 pub async fn login(
     form: Form<FormData>,
     pool: Data<PgPool>,
-    session: Session,
+    session: TypedSession,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -44,7 +44,7 @@ pub async fn login(
 
             session.renew();
             session
-                .insert("user_id", user_id)
+                .insert_user_id(user_id)
                 .map_err(|error| login_redirect(LoginError::UnexpectedError(error.into())))?;
 
             Ok(HttpResponse::SeeOther()

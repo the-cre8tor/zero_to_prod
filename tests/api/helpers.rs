@@ -253,15 +253,18 @@ impl TestApp {
         text
     }
     pub async fn get_admin_dashboard_html(&self) -> String {
-        let response = self
-            .api_client
+        let response = self.get_admin_dashboard();
+
+        let text = response.await.text().await.unwrap();
+
+        text
+    }
+
+    pub async fn get_admin_dashboard(&self) -> reqwest::Response {
+        self.api_client
             .get(&format!("{}/admin/dashboard", &self.address))
             .send()
             .await
-            .expect("Failed to execute request.");
-
-        let text = response.text().await.unwrap();
-
-        text
+            .expect("Failed to execute request.")
     }
 }

@@ -1,13 +1,16 @@
 //! src/routes/admin/dashboard.rs
-use std::fmt::{Debug, Display};
-
-use actix_session::Session;
 use actix_web::{
-    error::ErrorInternalServerError, http::header::ContentType, web::Data, HttpResponse,
+    error::ErrorInternalServerError,
+    http::header::{ContentType, LOCATION},
+    web::Data,
+    HttpResponse,
 };
 use anyhow::Context;
 use sqlx::PgPool;
+use std::fmt::{Debug, Display};
 use uuid::Uuid;
+
+use crate::session_state::TypedSession;
 
 fn error_500<T>(error: T) -> actix_web::Error
 where
@@ -17,13 +20,15 @@ where
 }
 
 pub async fn admin_dashboard(
-    session: Session,
+    session: TypedSession,
     pool: Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let username = if let Some(user_id) = session.get::<Uuid>("user_id").map_err(error_500)? {
+    let username = if let Some(user_id) = session.get_user_id().map_err(error_500)? {
         get_username(user_id, &pool).await.map_err(error_500)?
     } else {
-        todo!()
+        return Ok(HttpResponse::SeeOther()
+            .insert_header((LOCATION, "/login"))
+            .finish());
     };
 
     Ok(HttpResponse::Ok()

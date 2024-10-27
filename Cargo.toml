@@ -26,6 +26,7 @@ unicode-segmentation = "1.12"
 
 serde = { version = "1", features = ["derive"] }
 serde-aux = "4"
+serde_json = "1"
 
 # Gold Bag ->
 tracing = { version = "0.1", features = ["log"] }
