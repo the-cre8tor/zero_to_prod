@@ -78,9 +78,11 @@ impl Application {
         //     .connect_with(configuration.connect_options())
         //     .await
 
-        PgPoolOptions::new()
-            .connect(&configuration.connection_string())
-            .await
+        // PgPoolOptions::new()
+        //     .connect(&configuration.connection_string())
+        //     .await
+
+        PgPoolOptions::new().connect_lazy(&configuration.connection_string())
     }
 
     async fn run(
