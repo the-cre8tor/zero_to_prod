@@ -67,5 +67,11 @@ pub async fn change_password(
         };
     }
 
-    todo!()
+    crate::authentication::change_password(user_id, form.0.new_password, &pool)
+        .await
+        .map_err(error_500)?;
+
+    FlashMessage::error("Your password has been changed.").send();
+
+    Ok(see_other("/admin/password"))
 }
