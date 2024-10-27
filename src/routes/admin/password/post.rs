@@ -43,6 +43,13 @@ pub async fn change_password(
         return Ok(see_other("/admin/password"));
     }
 
+    let password_length = form.new_password.expose_secret().len();
+    let password_min = 12;
+    let password_max = 129;
+
+    // TODO: not completed
+    if password_length < password_min && password_length > password_max {}
+
     let username = get_username(user_id, &pool).await.map_err(error_500)?;
 
     let credentials = Credentials {
