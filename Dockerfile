@@ -4,7 +4,7 @@ FROM lukemathwalker/cargo-chef:latest-rust-1.81.0 as chef
 # Let's switch our working directory to `app` (equivalent to `cd app`)
 # The `app` folder will be created for us by Docker in case it does not
 # exist already.
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Install the required system dependencies for our linking configuration
 RUN apt update && apt install lld clang -y
@@ -24,7 +24,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Stage Description: caches our dependencies and then builds our binary.
 FROM chef as builder
 
-COPY --from=planner /app/recipe.json recipe.json
+COPY --from=planner /usr/src/app/recipe.json recipe.json
 
 # Build our project dependencies, not our application!
 RUN cargo chef cook --release --recipe-path recipe.json
@@ -43,7 +43,7 @@ RUN cargo build --release --bin zero_to_prod
 # Stage Description: runtime environment.
 FROM debian:bookworm-slim AS runtime
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Install OpenSSL - it is dynamically linked by some of our dependencies
 # Install ca-certificates - it is needed to verify TLS certificates
@@ -57,7 +57,7 @@ RUN apt-get update -y \
 
 # Copy the compiled binary from the builder environment
 # to our runtime environment
-COPY --from=builder /app/target/release/zero_to_prod zero_to_prod
+COPY --from=builder /usr/src/app/target/release/zero_to_prod zero_to_prod
 
 # We need the configuration file at runtime!
 COPY configuration configuration
