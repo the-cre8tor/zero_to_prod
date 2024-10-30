@@ -1,7 +1,7 @@
 use crate::authentication::UserId;
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
-use crate::idempotency::IdempotencyKey;
+use crate::idempotency::{get_saved_response, IdempotencyKey};
 use crate::utils::{error_400, error_500, see_other};
 use actix_web::web::ReqData;
 use actix_web::{web, HttpResponse};
@@ -24,9 +24,9 @@ pub struct FormData {
 )]
 pub async fn publish_newsletter(
     form: web::Form<FormData>,
-    user_id: ReqData<UserId>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    user_id: ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let FormData {
         title,
@@ -35,7 +35,16 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form.0;
 
+    let user_id = user_id.into_inner();
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(error_400)?;
+
+    if let Some(saved_response) = get_saved_response(&pool, &idempotency_key, *user_id)
+        .await
+        .map_err(error_500)?
+    {
+        FlashMessage::info("The newsletter issue has been published!").send();
+        return Ok(saved_response);
+    }
 
     let subscribers = get_confirmed_subscribers(&pool).await.map_err(error_500)?;
     for subscriber in subscribers {
