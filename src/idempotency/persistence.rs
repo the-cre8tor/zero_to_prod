@@ -77,6 +77,26 @@ pub async fn save_response(
         header
     };
 
+    sqlx::query_unchecked!(
+        r#"
+            INSERT INTO idempotency (
+                user_id,
+                idempotency_key,
+                response_status_code,
+                response_headers,
+                response_body,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, now())
+        "#,
+        user_id,
+        idempotency_key.as_ref(),
+        status_code,
+        headers,
+        body.as_ref()
+    )
+    .execute(pool)
+    .await?;
+
     // We need `.map_into_boxed_body` to go from
     // `HttpResponse<Bytes>` to `HttpResponse<BoxBody>`
     let http_response = response_head.set_body(body).map_into_boxed_body();
