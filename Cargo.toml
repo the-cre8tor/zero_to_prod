@@ -37,10 +37,10 @@ tracing-actix-web = "0.7"
 
 redact = { version = "0.1", features = ["serde"] }
 rand = { version = "0.8", features = ["std_rng"] }
-validator = "0.18" 
+validator = "0.18"
 
 thiserror = "1.0"
-anyhow = "1.0" 
+anyhow = "1.0"
 base64 = "0.22"
 argon2 = { version = "0.5", features = ["std"] }
 urlencoding = "2"
