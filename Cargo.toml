@@ -37,7 +37,7 @@ tracing-actix-web = "0.7"
 
 redact = { version = "0.1", features = ["serde"] }
 rand = { version = "0.8", features = ["std_rng"] }
-validator = "0.18"
+validator = "0.19"
 
 thiserror = "1.0"
 anyhow = "1.0"
