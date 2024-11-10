@@ -1,6 +1,4 @@
 use crate::authentication::UserId;
-use crate::domain::SubscriberEmail;
-use crate::email_client::EmailClient;
 use crate::idempotency::{save_response, try_processing, IdempotencyKey, NextAction};
 use crate::utils::{error_400, error_500, see_other};
 use actix_web::web::ReqData;
