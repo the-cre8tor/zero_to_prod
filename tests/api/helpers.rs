@@ -11,6 +11,8 @@ use uuid::Uuid;
 use wiremock::MockServer;
 use zero_to_prod::{
     configuration::{Configuration, DatabaseSettings},
+    email_client::EmailClient,
+    issue_delivery_worker::{try_execute_task, ExecutionOutcome},
     startup::Application,
     telemetry::Telemetry,
 };
@@ -42,6 +44,7 @@ pub struct TestApp {
     pub port: u16,
     pub test_user: TestUser,
     pub api_client: Client,
+    pub email_client: EmailClient,
 }
 
 impl TestApp {
@@ -69,9 +72,10 @@ impl TestApp {
         let connection_pool = TestApp::configure_database(&configuration.database).await;
 
         // Launch the application as a background task
-        let application = Application::build(configuration, connection_pool.clone())
+        let application = Application::build(configuration.clone(), connection_pool.clone())
             .await
             .expect("Failed to build application");
+
         let application_port = application.port();
 
         let address = format!("http://127.0.0.1:{}", application_port);
@@ -90,6 +94,7 @@ impl TestApp {
             email_server,
             test_user: TestUser::generate(),
             api_client: client,
+            email_client: configuration.email_client.client(),
         };
 
         test_app.test_user.store(&test_app.db_pool).await;
@@ -128,6 +133,18 @@ impl TestApp {
             .expect("Failed to migrate the database");
 
         connection_pool
+    }
+
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            if let ExecutionOutcome::EmptyQueue =
+                try_execute_task(&self.db_pool, &self.email_client)
+                    .await
+                    .unwrap()
+            {
+                break;
+            }
+        }
     }
 
     pub async fn post_subscriptions(&self, body: String) -> Response {
