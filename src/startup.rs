@@ -71,9 +71,7 @@ impl Application {
         Ok(Self { port, server })
     }
 
-    pub async fn db_connection_pool(
-        configuration: &DatabaseSettings,
-    ) -> Result<PgPool, sqlx::Error> {
+    pub fn db_connection_pool(configuration: &DatabaseSettings) -> Result<PgPool, sqlx::Error> {
         PgPoolOptions::new().connect_lazy(&configuration.connection_string())
     }
 

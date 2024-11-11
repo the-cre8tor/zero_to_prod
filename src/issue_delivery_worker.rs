@@ -4,7 +4,10 @@ use sqlx::{Executor, PgPool, Postgres, Transaction};
 use tracing::{field::display, Span};
 use uuid::Uuid;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient};
+use crate::{
+    configuration::Settings, domain::SubscriberEmail, email_client::EmailClient,
+    startup::Application,
+};
 
 type PgTransaction = Transaction<'static, Postgres>;
 
@@ -17,6 +20,26 @@ struct NewsletterIssue {
 enum ExecutionOutcome {
     TaskCompleted,
     EmptyQueue,
+}
+
+pub async fn run_worker_until_stopped(configuration: Settings) -> Result<(), anyhow::Error> {
+    let connection_pool = Application::db_connection_pool(&configuration.database)?;
+
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+
+    let timeout = configuration.email_client.timeout();
+
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+        configuration.email_client.authorization_token,
+        timeout,
+    );
+
+    worker_loop(connection_pool, email_client).await
 }
 
 async fn worker_loop(pool: PgPool, email_client: EmailClient) -> Result<(), anyhow::Error> {
