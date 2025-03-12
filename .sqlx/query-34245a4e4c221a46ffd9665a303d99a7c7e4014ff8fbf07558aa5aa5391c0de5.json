@@ -1,26 +1,28 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT email, name, status FROM subscriptions",
+  "query": "\n            SELECT title, text_content, html_content\n            FROM newsletter_issues\n            WHERE newsletter_issue_id = $1\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "email",
+        "name": "title",
         "type_info": "Text"
       },
       {
         "ordinal": 1,
-        "name": "name",
+        "name": "text_content",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "status",
+        "name": "html_content",
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Uuid"
+      ]
     },
     "nullable": [
       false,
@@ -28,5 +30,5 @@
       false
     ]
   },
-  "hash": "9ab6536d2bf619381573b3bf13507d53b2e9cf50051e51c803e916f25b51abd2"
+  "hash": "34245a4e4c221a46ffd9665a303d99a7c7e4014ff8fbf07558aa5aa5391c0de5"
 }
